@@ -1,0 +1,198 @@
+---
+title: "Ontario Library"
+author: "Olanrewaju Titilola"
+date: "2023-11-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# The purpose of the analysis is to:
+
+1. Assess how effectively each library is managing revenue generation and cost control at cardholder level.
+
+2. Measure the ability of libraries to secure funding, manage resources efficiently, and make strategic       investments in services and facilities for their long-term sustainability. 
+
+
+**Load library packages**
+```{r}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(magrittr)
+library(tidyverse)
+library(tidyr)
+library(knitr)
+```
+
+
+**Load all dataset**
+```{r}
+setwd("C:/Users/titil/OneDrive/Documents/UPLIFT/Module 2/Assignment 2")
+
+lib_6<-read.csv("lib_2006.csv")
+lib_7<-read.csv("lib_2007.csv")
+lib_8<-read.csv("lib_2008.csv")
+lib_9<-read.csv("lib_2009.csv")
+lib_10<-read.csv("lib_2010.csv")
+
+```
+
+**Select column headers of interest**
+```{r}
+headers<-c("Library", "Year", "City", "Library.Service.Type", "X..of.Active.Library.Cardholders", 
+"Total.Operating.Revenues", "Total.Operating.Expenditures")
+
+lib6 <-lib_6[headers]
+lib7 <-lib_7[headers]
+lib8 <-lib_8[headers]
+lib9 <-lib_9[headers]
+lib10 <-lib_10[headers]
+```
+
+**Bind all dataset with new headers from year 2006-2010**
+```{r}
+libs_all<-rbind(lib6, lib7, lib8, lib9, lib10)
+knitr::kable(head(libs_all, 5))
+```
+
+
+**Create a new metric for revenue per cardholder**
+```{r}
+rev_exp_cardholders <- libs_all %>%
+  mutate(
+    rev.cardholders = `Total.Operating.Revenues` / `X..of.Active.Library.Cardholders`,
+    exp.cardholders = `Total.Operating.Expenditures` / `X..of.Active.Library.Cardholders`,
+    net.income = `Total.Operating.Revenues` - `Total.Operating.Expenditures`
+  )
+
+knitr::kable(head(rev_exp_cardholders, 5))
+
+```
+
+**Clean columns with infinite and NaN values**
+```{r}
+rev_exp_cardholders<-rev_exp_cardholders%>%
+  mutate(
+    rev.cardholders=ifelse(is.infinite(rev.cardholders),0,`rev.cardholders`), 
+    exp.cardholders=ifelse(is.infinite(exp.cardholders),0,`exp.cardholders`),
+    net.income=ifelse(is.nan(net.income),0,`net.income`)
+  )
+    
+knitr::kable(head(rev_exp_cardholders, 5))
+
+```
+
+# Insight 1
+**Comparison of revenue per Cardholder and active cardholders by year**
+```{r}
+data_rev6<-rev_exp_cardholders%>%
+  aggregate(cbind(X..of.Active.Library.Cardholders, rev.cardholders) ~Year, 
+            data = ., sum)
+data_rev6<-data_rev6%>%
+  arrange(desc(rev.cardholders))
+knitr::kable(data_rev6)
+```
+
+**Graphical illustration**
+
+```{r}
+
+ggplot(data_rev6, aes(x = `Year`, y = `rev.cardholders`, fill = `Year`)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = X..of.Active.Library.Cardholders), vjust = -0.5, color = "black", size = 3) +
+  labs(title = "Rev per Cardholder/Active Cardholder Comparison by Year",
+       x = "Year/Active Cardholders",
+       y = "Revenue Per Cardholder") +
+  theme_minimal()
+
+```
+
+**Explanation: The income generated from cardholders has fluctuated over the years, reaching its peak in 2006. Despite an increase in the number of cardholders between 2006 and 2010, the revenue declined.** 
+
+
+# Insight 2
+**Comparison of revenue per Cardholder, expenditure per cardholder and active cardholders by year**
+```{r}
+data_rev<-aggregate(cbind(X..of.Active.Library.Cardholders, rev.cardholders,exp.cardholders) ~Year, 
+  data = rev_exp_cardholders, sum)
+data_rev<-data_rev%>%
+  arrange(desc(rev.cardholders))
+knitr::kable(data_rev)
+
+```
+**Explanation: Despite experiencing a larger number of active cardholders, the revenue per cardholder shows a fluctuations over the years; however, expenses per cardholder in 2009 was lower compared to other years. This suggests that there may have been better control over costs, or changes in the services provided by the library.**
+
+
+# Insight 3
+**Comparison of revenue per Cardholder, expenditure per cardholder and active cardholders by Library Service Type.**
+```{r}
+data_rev2<-rev_exp_cardholders%>%
+  aggregate(cbind(X..of.Active.Library.Cardholders, rev.cardholders,exp.cardholders) ~Library.Service.Type,
+  data = ., sum)%>%
+  arrange(desc(rev.cardholders))
+knitr::kable(data_rev2)
+
+```
+**Explanation: The First Nations Library have a smaller number of active cardholders when compared to the Public or Union Library, but it manages to generate significant revenue.**
+
+# Insight 4
+**Comparison of revenue per Cardholder, expenditure per cardholder and active cardholders by Library Name**
+
+```{r}
+data_rev3<-rev_exp_cardholders%>%
+  aggregate(cbind(X..of.Active.Library.Cardholders, rev.cardholders,exp.cardholders) ~Library, 
+  data = ., sum)%>%
+  arrange(desc(rev.cardholders))%>%
+head(n=5)
+knitr::kable(data_rev3)
+
+```
+**Explanation: Sheshegwaning FN has the highest expenses while Michipicoten FN has the lowest.**
+
+# Insight 5
+**Net income comparison by Library Service Type**
+```{r}
+data_rev4<-rev_exp_cardholders%>%
+  aggregate(cbind(X..of.Active.Library.Cardholders, rev.cardholders, Total.Operating.Revenues, net.income) ~Library.Service.Type, 
+  data=., sum)%>%
+  arrange(desc(net.income))
+knitr::kable(data_rev4)
+
+```
+**Explanation: The magnitude of net loss shows that Public Library has most significant losses and  County being the only Library Service Type with a positive net profit. It is important to investigate why Contracting LSB and Contracting Municipal had zero active cardholders and received revenue with a record of loss.**
+
+
+# Insight 6
+**Profit comparison by Library Name - top 10 and bottom 10**
+
+```{r}
+data_rev5<-rev_exp_cardholders%>%
+  aggregate(cbind(X..of.Active.Library.Cardholders, rev.cardholders, exp.cardholders, net.income) ~Library, 
+            data = ., sum)%>%
+ arrange(desc(net.income))%>%
+   slice(c(1:10, (n()-9): n()))
+knitr::kable(data_rev5)
+
+```
+**Explanation: In relation to profit maximization, Oshawa Library made the highest profit per cardholder, while Mississauga Library made a loss and on the bottom of the list.**
+
+
+# Recommendation to Ontario Government:
+
+1. Examine the factors that led to the highest revenue in 2006, despite there being fewer cardholders in 2006 compared to subsequent years. It is important to determine if it was a strategic decision or an influence by external factors.
+
+2. Despite having a smaller user base, the "First Nations Library" has managed to generate significant revenues. A study into the revenue generation strategies employed by this library could shed light on alternative funding models that can sustain smaller libraries. 
+
+3. Further investigate factors contributing to the increase in the number of cardholders in  County, County co-operative, or Regional Municipality Library and analysis of the strategies implemented to drive user growth.
+
+4. Determine the causes of net losses in larger libraries, particularly the Public or Union Library. Also, Understand the circumstances surrounding net losses in smaller libraries to identify the challenges they are currently encountering for potential solutions.
+
+5. Re-evaluate the policy guiding the revenue sharing across all libraries to ensure optimum performance.
+
+
+
+
